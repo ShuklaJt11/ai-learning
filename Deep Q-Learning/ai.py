@@ -102,8 +102,9 @@ class Dqn:
         Returns:
             Integer: Action for the car ranging from 0 to 2
         """
-        probabilities = F.softmax(self.model(Variable(input_state, volatile=True)) * self.temperature)
-        action = probabilities.multinomial(num_samples=1)
+        with torch.no_grad():
+            probabilities = F.softmax(self.model(Variable(input_state)) * self.temperature, dim=1)
+            action = probabilities.multinomial(num_samples=1)
         return action.data[0, 0]
 
     def learn(self, batch_state, batch_next_state, batch_reward, batch_action):
@@ -115,12 +116,12 @@ class Dqn:
             batch_reward (Vector): Reward for this batch
             batch_action (Vector): Actions performed in this batch
         """
-        outputs = self.model(batch_state).gather(1, batch_action.unsqueeze(1)).sqeeze(1)
+        outputs = self.model(batch_state).gather(1, batch_action.unsqueeze(1)).squeeze(1)
         next_outputs = self.model(batch_next_state).detach().max(1)[0]
         targets = batch_reward + self.gamma * next_outputs
         td_loss = F.smooth_l1_loss(outputs, targets)
         self.optimizer.zero_grad()
-        td_loss.backward(retain_variables=True)
+        td_loss.backward(retain_graph=True)
         self.optimizer.step()
 
     def update(self, reward, signal):
@@ -137,8 +138,8 @@ class Dqn:
         self.memory.push((self.last_state, new_state, torch.LongTensor([int(self.last_action)]), torch.Tensor([self.last_reward])))
         action = self.select_action(new_state)
         if len(self.memory.memory) > 100:
-            batch_state, batch_next_state, batch_reward, batch_action = self.memory.sample(100)
-            self.learn(batch_action, batch_next_state, batch_reward, batch_action)
+            batch_state, batch_next_state, batch_action, batch_reward = self.memory.sample(100)
+            self.learn(batch_state, batch_next_state, batch_reward, batch_action)
         self.last_action = action
         self.last_state = new_state
         self.last_reward = reward

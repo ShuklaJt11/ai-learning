@@ -24,7 +24,12 @@ Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 last_x, last_y, n_points, length = [0] * 4
 
 # Setting up our AI and other variables
-brain = Dqn(5, 3, 0.9, 100_000, 0)
+nb_dimensions = 5
+nb_actions = 3
+gamma = 0.9
+mem_capacity = 100_000
+temp = 75
+brain = Dqn(dimensions=nb_dimensions, action=nb_actions, gamma=gamma, mem_capacity=mem_capacity, temperature=temp)
 action_to_rotation = [0, 20, -20]
 last_reward = 0
 scores = []
@@ -133,7 +138,7 @@ class Game (Widget):
             self.car.velocity = Vector(6, 0).rotate(self.car.angle)
             last_reward = -0.2
             if distance < last_distance:
-                last_reward = 0.1
+                last_reward = 2
 
         if self.car.x < 10:
             self.car.x = 10
@@ -150,7 +155,7 @@ class Game (Widget):
 
         if distance < 100:
             goal_x = self.width - goal_x
-            goal_y = self.width - goal_y
+            goal_y = self.height - goal_y
         last_distance = distance
 
 # Creating class to add painting tools
@@ -200,18 +205,18 @@ class CarApp (App):
         parent.add_widget(loadbtn)
         return parent
     
-    def clear_canvas(self):
+    def clear_canvas(self, obj):
         global sand
         self.painter.canvas.clear()
         sand = np.zeros((map_width, map_height))
 
-    def save(self):
+    def save(self, obj):
         print('Saving Brain...')
         brain.save()
         plt.plot(scores)
         plt.show()
 
-    def load(self):
+    def load(self, obj):
         print('Loading last saved Brain...')
         brain.load()
 
